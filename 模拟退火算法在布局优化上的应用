@@ -1,0 +1,91 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+np.random.seed(0)
+
+# 1. 生成槽位：4x5 网格，共 20 个位置
+gx, gy = np.meshgrid(np.arange(5), np.arange(4))
+slots = np.column_stack([gx.ravel(), gy.ravel()]).astype(float)
+N = len(slots)
+
+# 2. 生成模块之间的连接，简化版“网表”
+edges = []
+for i in range(N):
+    for j in range(i + 1, N):
+        if np.random.rand() < 0.15:
+            edges.append((i, j))
+if not edges:
+    edges = [(0, 1), (2, 3), (4, 5)]
+
+# 3. 成本函数：所有连接线长之和，用曼哈顿距离（也就是L1范数诱导的距离）
+def cost(perm):
+    total = 0.0
+    for i, j in edges:
+        xi, yi = slots[perm[i]]
+        xj, yj = slots[perm[j]]
+        total += abs(xi - xj) + abs(yi - yj)
+    return total
+
+# 4. 初始解：随机把模块分配到槽位
+current = np.random.permutation(N)
+current_cost = cost(current)
+initial_cost = current_cost
+best = current.copy()
+best_cost = current_cost
+
+# 5. 模拟退火
+T = 10.0
+alpha = 0.995
+iterations = 20000
+history = []
+
+for k in range(iterations):
+    i, j = np.random.choice(N, 2, replace=False)
+    new = current.copy()
+    new[i], new[j] = new[j], new[i]
+    new_cost = cost(new)
+
+    if new_cost < current_cost or np.random.rand() < np.exp(-(new_cost - current_cost) / T):
+        current = new
+        current_cost = new_cost
+        if current_cost < best_cost:
+            best = current.copy()
+            best_cost = current_cost
+
+    T *= alpha
+    if k % 100 == 0:
+        history.append(current_cost)
+
+print(f"初始线长: {initial_cost:.2f}")
+print(f"最终线长: {best_cost:.2f}")
+print(f"改进: {(initial_cost - best_cost) / initial_cost * 100:.1f}%")
+
+# 6. 画最终布局
+plt.figure(figsize=(8, 6))
+for i, j in edges:
+    xi, yi = slots[best[i]]
+    xj, yj = slots[best[j]]
+    plt.plot([xi, xj], [yi, yj], 'k-', alpha=0.25)
+
+x = slots[best][:, 0]
+y = slots[best][:, 1]
+plt.scatter(x, y, s=220, c='skyblue', edgecolors='k', zorder=3)
+for idx, (xi, yi) in enumerate(slots[best]):
+    plt.text(xi, yi, str(idx), ha='center', va='center', fontsize=8, zorder=4)
+
+plt.gca().invert_yaxis()
+plt.title(f"SA placement: {initial_cost:.1f} -> {best_cost:.1f}")
+plt.axis('equal')
+plt.grid(True, alpha=0.3)
+plt.savefig('placement.png', dpi=150)
+plt.show()
+
+# 7. 画收敛曲线
+plt.figure(figsize=(8, 4))
+plt.plot(history)
+plt.xlabel('iteration x100')
+plt.ylabel('cost')
+plt.title('SA convergence')
+plt.grid(True, alpha=0.3)
+plt.savefig('convergence.png', dpi=150)
+plt.show()
