@@ -38,7 +38,7 @@ def cost(perm):
         xi, yi = slots[perm[i]]
         xj, yj = slots[perm[j]]
         total += abs(xi - xj) + abs(yi - yj)
-        penalty=lambda1*density_penalty(perm)
+    penalty=lambda1*density_penalty(perm)
     return total+penalty
 
 # 5. 初始解：随机把模块分配到槽位
@@ -69,7 +69,7 @@ for k in range(iterations):
 
     T *= alpha
     if k % 100 == 0:
-        history.append(current_cost)
+        history.append(best_cost)
 
 print(f"初始线长: {initial_cost:.2f}")
 print(f"最终线长: {best_cost:.2f}")
