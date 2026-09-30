@@ -1,4 +1,6 @@
-#30个槽位，20个模块，同时加入罚函数以达到密度约束
+#观察降温速率对解质量的影响，改动α = 0.95 / 0.99 / 0.999
+# 说明：alpha 越大，温度下降越慢，搜索越充分但耗时越长；
+#       alpha 越小，降温越快，容易过早收敛（陷入局部最优）。
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -41,66 +43,96 @@ def cost(perm):
     penalty=lambda1*density_penalty(perm)
     return total+penalty
 
-# 5. 初始解：随机把模块分配到槽位
-current = np.random.permutation(num_slots)
-current_cost = cost(current)
-initial_cost = current_cost
-best = current.copy()
-best_cost = current_cost
+#5.将模拟退火过程封装成函数
+def run_sa(alpha):
+    """运行一次模拟退火，返回最佳布局、初始/最终成本和收敛历史"""
+    # 初始解：随机把模块分配到槽位
+    current = np.random.permutation(num_slots)
+    current_cost = cost(current)
+    initial_cost = current_cost
+    best = current.copy()
+    best_cost = current_cost
 
-# 6. 模拟退火
-T = 10.0
-alpha = 0.995
-iterations = 20000
-history = []
+    # 模拟退火
+    T = 10.0
+    alpha = 0.995
+    iterations = 20000
+    history = []
 
-for k in range(iterations):
-    i, j = np.random.choice(num_slots, 2, replace=False)
-    new = current.copy()
-    new[i], new[j] = new[j], new[i]
-    new_cost = cost(new)
+    for k in range(iterations):
+        i, j = np.random.choice(num_slots, 2, replace=False)
+        new = current.copy()
+        new[i], new[j] = new[j], new[i]
+        new_cost = cost(new)
 
-    if new_cost < current_cost or np.random.rand() < np.exp(-(new_cost - current_cost) / T):
-        current = new
-        current_cost = new_cost
-        if current_cost < best_cost:
-            best = current.copy()
-            best_cost = current_cost
+        if new_cost < current_cost or np.random.rand() < np.exp(-(new_cost - current_cost) / T):
+            current = new
+            current_cost = new_cost
+            if current_cost < best_cost:
+                best = current.copy()
+                best_cost = current_cost
 
-    T *= alpha
-    if k % 100 == 0:
-        history.append(best_cost)
+        T *= alpha
+        if k % 100 == 0:
+            history.append(best_cost)
+    return best, initial_cost, best_cost, history
 
-print(f"初始线长: {initial_cost:.2f}")
-print(f"最终线长: {best_cost:.2f}")
-print(f"改进: {(initial_cost - best_cost) / initial_cost * 100:.1f}%")
 
-# 7. 画最终布局
-plt.figure(figsize=(8, 6))
-for i, j in edges:
-    xi, yi = slots[best[i]]
-    xj, yj = slots[best[j]]
-    plt.plot([xi, xj], [yi, yj], 'k-', alpha=0.25)
+alphas = [0.95, 0.99, 0.999]
+colors = ['red', 'green', 'blue']
+results = {}
 
-x = slots[best][:, 0]
-y = slots[best][:, 1]
-plt.scatter(x, y, s=220, c='skyblue', edgecolors='k', zorder=3)
-for idx, (xi, yi) in enumerate(slots[best]):
-    plt.text(xi, yi, str(idx), ha='center', va='center', fontsize=8, zorder=4)
+for a in alphas:
+    best, initial_cost, best_cost, history = run_sa(alpha=a)
+    results[a] = {
+        'best': best,
+        'initial_cost': initial_cost,
+        'best_cost': best_cost,
+        'history': history
+    }
+    print(f"alpha={a}: 初始线长={initial_cost:.2f}, 最终线长={best_cost:.2f}, "
+          f"改进={(initial_cost - best_cost) / initial_cost * 100:.1f}%")
 
-plt.gca().invert_yaxis()
-plt.title(f"SA placement: {initial_cost:.1f} -> {best_cost:.1f}")
-plt.axis('equal')
-plt.grid(True, alpha=0.3)
-plt.savefig('placement.png', dpi=150)
+fig, axes = plt.subplots(1, 3, figsize=(20, 6))
+
+for ax, alpha, color in zip(axes, alphas, colors):
+    best = results[alpha]['best']
+    best_cost = results[alpha]['best_cost']
+
+    # 画连线
+    for i, j in edges:
+        xi, yi = slots[best[i]]
+        xj, yj = slots[best[j]]
+        ax.plot([xi, xj], [yi, yj], 'k-', alpha=0.25)
+
+    # 画模块
+    x = slots[best][:, 0]
+    y = slots[best][:, 1]
+    ax.scatter(x, y, s=220, c='skyblue', edgecolors='k', zorder=3)
+    for idx, (xi, yi) in enumerate(slots[best]):
+        ax.text(xi, yi, str(idx), ha='center', va='center', fontsize=8, zorder=4)
+
+    ax.invert_yaxis()
+    ax.set_title(f'alpha={alpha}, Final Cost={best_cost:.1f}', fontsize=12)
+    ax.set_aspect('equal')
+    ax.grid(True, alpha=0.3)
+
+plt.suptitle('SA Placement: Cooling Rate Comparison', fontsize=14, y=1.02)
+plt.tight_layout()
+plt.savefig('placement_comparison.png', dpi=150, bbox_inches='tight')
 plt.show()
 
-# 8. 画收敛曲线
-plt.figure(figsize=(8, 4))
-plt.plot(history)
+#曲线收敛图
+plt.figure(figsize=(10, 5))
+for alpha, color in zip(alphas, colors):
+    history = results[alpha]['history']
+    plt.plot(history, label=f'alpha={alpha}', color=color, linewidth=1.5)
+
 plt.xlabel('iteration x100')
 plt.ylabel('cost')
-plt.title('SA convergence')
+plt.title('SA Convergence: Cooling Rate Comparison')
+plt.legend(fontsize=12)
 plt.grid(True, alpha=0.3)
-plt.savefig('convergence.png', dpi=150)
+plt.tight_layout()
+plt.savefig('convergence_comparison.png', dpi=150)
 plt.show()
