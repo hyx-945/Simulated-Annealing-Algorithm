@@ -1,2 +1,23 @@
-# Simulated-Annealing-Algorithm
-A repository containing code and resources related to the Simulated Annealing algorithm.
+# 模拟退火算法在布局优化上的应用
+
+## 1. 项目简介
+本项目利用模拟退火算法（Simulated Annealing, SA）解决一个5x6网格、20个模块的布局优化问题。目标是最小化连接线长，同时通过罚函数平衡每行的模块密度。
+
+## 2. 算法核心
+- **状态定义**：模块在30个槽位中的排列。
+- **成本函数**：所有连线曼哈顿距离之和 + 行密度惩罚。
+- **邻域移动**：随机交换两个模块的位置。
+- **Metropolis准则**：以一定概率接受劣解，避免陷入局部最优。
+
+## 3. 实验结果
+
+### 3.1 不同降温速率下的布局对比
+![布局图](images/placement_comparison.png)
+*图1：α=0.95, 0.99, 0.999 三种降温速率下的最终布局。*
+
+### 3.2 收敛曲线对比
+![收敛曲线](images/convergence_comparison.png)
+*图2：三种参数下的成本下降曲线。*
+
+## 4. 如何运行
+复制 `模拟退火算法在布局优化上的应用`，保存为.py，运行后会自动生成对比图。
