@@ -21,7 +21,6 @@
 
 ## 4. 如何运行
 1. 安装依赖库：
-   \`\`\`bash
+   ```bash
    pip install numpy matplotlib
-   \`\`\`
 2. 直接运行 `main.py` 或对应的主程序文件，程序会自动生成对比图并保存到当前文件夹。
